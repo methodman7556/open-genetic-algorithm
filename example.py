@@ -1,5 +1,7 @@
 import numpy
-import ga
+
+from ga import GeneticAlgorithm
+
 
 """
 The y=target is to maximize this equation ASAP:
@@ -22,6 +24,10 @@ Genetic algorithm parameters:
 """
 sol_per_pop = 8
 num_parents_mating = 4
+
+# PCG64 https://numpy.org/doc/stable/reference/random/bit_generators/pcg64.html
+prng = numpy.random.default_rng(seed=12345)
+ga = GeneticAlgorithm(prng=prng)
 
 # Defining the population size.
 pop_size = (
