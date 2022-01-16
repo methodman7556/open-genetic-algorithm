@@ -1,25 +1,50 @@
 import numpy
+from numpy import ndarray
 
 
 class GeneticAlgorithm:
-    def __init__(self, prng=numpy.random.default_rng()):
+    population: ndarray
+    """Set of chromosomes"""
+
+    def __init__(
+        self,
+        fitness_func,
+        generations,
+        genes,
+        num_parents_mating,
+        chromosomes,
+        population=None,
+        prng=numpy.random.default_rng(),
+    ):
+        self.chromosomes = chromosomes
+        self.genes = genes
+        self.fitness_func = fitness_func
+        self.generations = generations
+        self.num_parents = num_parents_mating
+        self.pop_size = (self.chromosomes, self.genes)
         self.prng = prng
+        self.population = (
+            self.initialise_population() if population is None else population
+        )
 
-    def calculate_pop_fitness(self, equation_inputs, pop):
-        # Calculating the fitness value of each solution in the current population.
-        # The fitness function calculates the sum of products between each input and its corresponding weight.
-        fitness = numpy.sum(pop * equation_inputs, axis=1)
-        return fitness
+    def initialise_population(self) -> ndarray:
+        """Initialises population for usage by the genetic algorithm.
 
-    def select_mating_pool(self, pop, fitness, num_parents):
+        The population has shape of (chromosomes, genes). Chromosomes represent the individuals making up the population.
+        Each chromosome's gene is populated by drawing a sample from a uniform distribution.
+
+        """
+        return self.prng.uniform(low=-4.0, high=4.0, size=self.pop_size)
+
+    def selection(self, fitnesses):
         # Selecting the best individuals in the current generation as parents for producing the offspring of the next
         # generation.
-        parents = numpy.empty((num_parents, pop.shape[1]))
-        for parent_num in range(num_parents):
-            max_fitness_idx = numpy.where(fitness == numpy.max(fitness))
+        parents = numpy.empty((self.num_parents, self.genes))
+        for parent_num in range(self.num_parents):
+            max_fitness_idx = numpy.where(fitnesses == numpy.max(fitnesses))
             max_fitness_idx = max_fitness_idx[0][0]
-            parents[parent_num, :] = pop[max_fitness_idx, :]
-            fitness[max_fitness_idx] = -99999999999
+            parents[parent_num, :] = self.population[max_fitness_idx, :]
+            fitnesses[max_fitness_idx] = -99999999999
         return parents
 
     def crossover(self, parents, offspring_size):
@@ -45,3 +70,43 @@ class GeneticAlgorithm:
             random_value = self.prng.uniform(low=-1.0, high=1.0, size=1)
             offspring_crossover[idx, 4] = offspring_crossover[idx, 4] + random_value
         return offspring_crossover
+
+    def run(self):
+        for generation in range(self.generations):
+            print("Generation : ", generation)
+            # Measuring the fitness of each chromosome in the population.
+            chromosomes_fitness = self.fitness_func(self.population)
+
+            # Selecting the best parents in the population for mating.
+            parents = self.selection(chromosomes_fitness)
+
+            # Generating next generation using crossover.
+            offspring_crossover = self.crossover(
+                parents,
+                offspring_size=(self.chromosomes - parents.shape[0], self.genes),
+            )
+
+            # Adding some variations to the offspring using mutation.
+            offspring_mutation = self.mutation(offspring_crossover)
+
+            # Creating the new population based on the parents and offspring.
+            self.population[0 : parents.shape[0], :] = parents
+            self.population[parents.shape[0] :, :] = offspring_mutation
+
+            # The best result in the current iteration.
+            print(
+                "Best result : ",
+                numpy.max(self.fitness_func(self.population)),
+            )
+
+    def report(self):
+        # Getting the best solution after iterating finishing all generations.
+        # At first, the fitness is calculated for each solution in the final generation.
+        fitness = self.fitness_func(self.population)
+        # Then return the index of that solution corresponding to the best fitness.
+        best_match_idx = numpy.where(fitness == numpy.max(fitness))
+
+        print("Best solution : ", self.population[best_match_idx, :])
+        print("Best solution fitness : ", fitness[best_match_idx])
+
+        return best_match_idx[0][0]
